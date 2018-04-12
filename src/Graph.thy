@@ -4,28 +4,19 @@
 *)
 
 theory Graph
-  imports Main
+  imports Main Graph_Base
 begin
 
 type_synonym 'a graph = "'a set \<times> 'a set set"
 
 locale graph =
-  fixes
-    G :: "'a graph"
-  fixes
-    V :: "'a set"
-  fixes
-    E :: "'a set set"
-  defines
-    "V \<equiv> fst G"
-  defines
-    "E \<equiv> snd G"
-  assumes
-    finite_vertices: "finite V"
-  assumes
-    nonempty_vertices: "V \<noteq> {}"
+  graph_base G for G :: "'a graph" +
   assumes
     edges: "E \<subseteq> {e. e \<subseteq> V \<and> card e = 2}"
+  defines
+    "adjacent v w \<equiv> {v, w} \<in> E"
+  defines
+    "incident v e \<equiv> v \<in> e"
 begin
 
 lemma finite_edges: "finite E"
@@ -38,42 +29,25 @@ proof -
     by (rule Finite_Set.finite_subset)
 qed
 
-lemma edge_vertices: "e \<in> E \<Longrightarrow> \<exists>v w. e = {v, w}"
+lemma edge_vertices: "e \<in> E \<Longrightarrow> \<exists>v \<in> V. \<exists>w \<in> V. e = {v, w}"
 proof -
   fix e assume "e \<in> E"
 
-  then have "card e = Suc (Suc 0)" using edges by auto
+  then have "card e = Suc (Suc 0)"
+    using edges by auto
 
   then obtain v e' where "e = insert v e'" and "card e' = Suc 0"
     using card_eq_SucD by metis
 
-  then show "\<exists>v w. e = {v, w}"
+  then obtain w where "e = {v, w}"
     using card_eq_SucD
     by blast
-qed
+
+  with `e \<in> E` show "\<exists>v\<in>V. \<exists>w\<in>V. e = {v, w}"
+    using edges by blast
+  qed
 
 subsection \<open>Adjacency and Neighborhood\<close>
-
-definition adjacent :: "'a \<Rightarrow> 'a \<Rightarrow> bool" where
-  "adjacent v w \<equiv> {v, w} \<in> E"
-
-definition neighborhood :: "'a \<Rightarrow> 'a set" where
-  "neighborhood v \<equiv> {w \<in> V. {v, w} \<in> E}"
-
-definition deg :: "'a \<Rightarrow> nat" where
-  "deg v \<equiv> card {e \<in> E. v \<in> e}"
-
-definition isolated :: "'a \<Rightarrow> bool" where
-  "isolated v \<equiv> deg v = 0"
-
-definition leaf :: "'a \<Rightarrow> bool" where
-  "leaf v \<equiv> deg v = 1"
-
-definition \<delta> :: nat where
-  "\<delta> \<equiv> Min {deg v | v. v \<in> V}"
-
-definition \<Delta> :: nat where
-  "\<Delta> \<equiv> Max {deg v | v. v \<in> V}"
 
 lemma adjacent_comm: "adjacent v w \<longleftrightarrow> adjacent w v"
 proof -
@@ -97,27 +71,23 @@ proof -
   next
     show "f ` {w \<in> V. {v, w} \<in> E} = {e \<in> E. v \<in> e}"
       unfolding f_def image_def
-    proof auto
-      fix e
-      assume "e \<in> E" and "v \<in> e"
-
-      then obtain w where "e = {v, w}"
-        using edge_vertices by blast
-
-      then show "\<exists>w. w \<in> V \<and> {v, w} \<in> E \<and> e = {v, w}"
-        using edges \<open>e \<in> E\<close> by blast
-    qed
+      using edge_vertices
+      by auto (metis empty_iff insert_commute insert_iff)
   qed
 
-  then have "card {w \<in> V. {v, w} \<in> E} = card {e \<in> E. v \<in> e}"
-    using bij_betw_same_card by auto
-
   then show ?thesis
-    unfolding deg_def neighborhood_def by simp
+    unfolding adjacent_def incident_def deg_def neighborhood_def
+    using bij_betw_same_card
+    by fastforce
 qed
 
+find_theorems "\<Sum>_ \<in> _. _"
+
 lemma sum_deg: "(\<Sum>v \<in> V. deg v) = 2 * card E"
-  oops
+proof -
+
+
+qed
 
 lemma even_edges_odd: "even (card {v \<in> V. odd (deg v)})"
   oops
